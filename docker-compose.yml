@@ -1,0 +1,64 @@
+networks:
+  clean-app-net:
+    driver: bridge
+    name: clean-app-net
+
+volumes:
+  clean_data:
+    name: clean_data
+
+services:
+  postgres-db:
+    container_name: postgres-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: product_catalog_db
+      POSTGRES_USER: clean_user
+      POSTGRES_PASSWORD: clean_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - clean_data:/var/lib/postgresql/data
+    networks:
+      - clean-app-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clean_user -d product_catalog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend-api:
+    container_name: backend-api
+    build:
+      context: ./backend
+      dockerfile: src/ProductCatalog.WebApi/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__Database: Host=postgres-db;Port=5432;Database=product_catalog_db;Username=clean_user;Password=clean_password;
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - clean-app-net
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:5000/api/v1
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend-api
+    networks:
+      - clean-app-net

@@ -1,0 +1,156 @@
+# ==============================================================================
+# OPENSPEC DOMAIN LAYER SPECIFICATION: CORE BUSINESS ENTITIES & RULES
+# ==============================================================================
+schema: "openspec/v1"
+layer:
+  name: "Domain"
+  project: "ProductCatalog.Domain"
+  namespace: "ProductCatalog.Domain"
+  level: 0
+  purity: "Zero external dependencies. Only .NET BCL."
+
+entities:
+  - name: "Product"
+    type: "AggregateRoot"
+    description: "Entidad raíz de agregado que representa un producto del catálogo con su inventario consolidado."
+    encapsulation: "Private setters. Estado inmutable desde el exterior."
+    
+    attributes:
+      - name: "Id"
+        type: "Guid"
+        access: "public get; private set;"
+        description: "Identificador único global del producto."
+        required: true
+
+      - name: "Sku"
+        type: "string"
+        access: "public get; private set;"
+        description: "Código de referencia único de inventario (Stock Keeping Unit). Inmutable una vez creado."
+        invariants:
+          - "No puede ser nulo, vacío ni contener solo espacios en blanco."
+          - "Longitud entre 3 y 50 caracteres alfanuméricos en mayúsculas y guiones."
+        required: true
+
+      - name: "Name"
+        type: "string"
+        access: "public get; private set;"
+        description: "Nombre comercial del producto."
+        invariants:
+          - "No puede ser nulo ni vacío."
+          - "Longitud entre 3 y 150 caracteres."
+        required: true
+
+      - name: "Description"
+        type: "string?"
+        access: "public get; private set;"
+        description: "Descripción detallada del producto."
+        invariants:
+          - "Máximo 1000 caracteres."
+        required: false
+
+      - name: "Price"
+        type: "decimal"
+        access: "public get; private set;"
+        description: "Precio unitario del producto."
+        invariants:
+          - "Debe ser estrictamente mayor a cero (> 0.00m)."
+        required: true
+
+      - name: "Stock"
+        type: "int"
+        access: "public get; private set;"
+        description: "Cantidad física disponible en almacén."
+        invariants:
+          - "Debe ser mayor o igual a cero (>= 0). No se permite stock negativo bajo ninguna circunstancia."
+        required: true
+
+      - name: "CreatedAtUtc"
+        type: "DateTime"
+        access: "public get; private set;"
+        description: "Marca de tiempo UTC de creación del registro."
+        required: true
+
+      - name: "UpdatedAtUtc"
+        type: "DateTime?"
+        access: "public get; private set;"
+        description: "Marca de tiempo UTC de la última mutación de estado."
+        required: false
+
+    constructors:
+      - visibility: "private"
+        signature: "Product()"
+        purpose: "Constructor protegido/privado requerido para hidratación mediante EF Core."
+
+      - visibility: "private"
+        signature: "Product(Guid id, string sku, string name, string description, decimal price, int initialStock)"
+        purpose: "Constructor privado para inicialización validada invoked exclusivamente por la fábrica Create."
+
+    factory_methods:
+      - name: "Create"
+        visibility: "public static"
+        parameters:
+          - name: "sku"
+            type: "string"
+          - name: "name"
+            type: "string"
+          - name: "description"
+            type: "string?"
+          - name: "price"
+            type: "decimal"
+          - name: "initialStock"
+            type: "int"
+          - name: "id"
+            type: "Guid?"
+            default: "null (se genera Guid.NewGuid() si es omitido)"
+        returns: "Product"
+        invariants_checked:
+          - condition: "string.IsNullOrWhiteSpace(sku)"
+            action: "throw DomainRuleValidationException('El SKU es obligatorio.')"
+          - condition: "string.IsNullOrWhiteSpace(name)"
+            action: "throw DomainRuleValidationException('El nombre del producto es obligatorio.')"
+          - condition: "price <= 0"
+            action: "throw DomainRuleValidationException('El precio debe ser estrictamente mayor a cero.')"
+          - condition: "initialStock < 0"
+            action: "throw DomainRuleValidationException('El stock inicial no puede ser negativo.')"
+        postconditions:
+          - "Instancia un nuevo objeto Product con Guid asignado."
+          - "CreatedAtUtc = DateTime.UtcNow."
+          - "UpdatedAtUtc = null."
+
+    domain_methods:
+      - name: "AdjustStock"
+        visibility: "public"
+        parameters:
+          - name: "delta"
+            type: "int"
+            description: "Cantidad de unidades a incrementar (> 0) o decrementar (< 0)."
+        returns: "int (Stock resultante)"
+        invariants_checked:
+          - condition: "(Stock + delta) < 0"
+            action: "throw DomainRuleValidationException($'Operación inválida: El ajuste de stock ({delta}) dejaría el stock en negativo ({Stock + delta}). Stock actual: {Stock}.')"
+        state_mutations:
+          - "Stock += delta"
+          - "UpdatedAtUtc = DateTime.UtcNow"
+
+domain_exceptions:
+  - name: "DomainRuleValidationException"
+    base_class: "Exception"
+    namespace: "ProductCatalog.Domain.Exceptions"
+    description: "Lanzada cuando cualquier regla de negocio o invariante del agregado es violada."
+    http_mapping:
+      status_code: 400
+      problem_type: "https://unicesar.edu.co/errors/domain-rule-violation"
+      title: "Violación de Regla de Negocio en Dominio"
+
+  - name: "ProductNotFoundException"
+    base_class: "Exception"
+    namespace: "ProductCatalog.Domain.Exceptions"
+    description: "Lanzada cuando se intenta acceder o mutar un producto no existente."
+    parameters:
+      - name: "productId"
+        type: "Guid"
+    message_format: "No se encontró ningún producto con el identificador '{productId}'."
+    http_mapping:
+      status_code: 404
+      problem_type: "https://unicesar.edu.co/errors/not-found"
+      title: "Recurso No Encontrado"

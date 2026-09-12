@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ProductCatalog.Domain</RootNamespace>
+    <AssemblyName>ProductCatalog.Domain</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Capa de Dominio Pura: Cero dependencias de infraestructura o frameworks -->
+
+</Project>

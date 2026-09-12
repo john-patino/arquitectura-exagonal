@@ -1,0 +1,34 @@
+# Build and compiled output
+bin/
+obj/
+dist/
+out/
+build/
+
+# Node / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDE and Editors
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Environment files
+.env.local
+.env.*.local
+
+# OS Generated
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
+
+# Logs & Databases
+*.log
+pgdata/

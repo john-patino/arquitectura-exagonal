@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Clean Architecture - Catálogo e Inventario",
+    "subtitle": "Monolito Desacoplado Two-Tier (.NET 8, PostgreSQL 16, React 18)",
+    "output": "clean-architecture-map.html",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "views": [
+      {
+        "id": "write-path",
+        "label": "Flujo de Comando y Reglas de Negocio",
+        "focus": ["browser", "frontend", "webapi", "application", "domain"],
+        "note": "Ruta de mutación de stock: desde la UI hasta la validación de la invariante en la entidad Product."
+      },
+      {
+        "id": "persistence-path",
+        "label": "Inversión de Dependencias y Persistencia",
+        "focus": ["application", "infrastructure", "database", "domain"],
+        "note": "La infraestructura implementa IProductRepository e IUnitOfWork sin acoplar el dominio a PostgreSQL."
+      },
+      {
+        "id": "full-system",
+        "label": "Topología Completa del Sistema",
+        "focus": ["browser", "frontend", "webapi", "application", "domain", "infrastructure", "database"],
+        "note": "Visión global de capas concéntricas y contenedores de Docker Compose."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Client Browser",
+      "sublabel": "Navegador Web",
+      "pos": [40, 240],
+      "size": [120, 64]
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "Frontend SPA",
+      "sublabel": "React 18 + Vite :5173",
+      "tag": "Tailwind CSS",
+      "pos": [230, 240],
+      "size": [140, 64]
+    },
+    {
+      "id": "webapi",
+      "type": "backend",
+      "label": "Presentation Layer",
+      "sublabel": "WebApi Host :5000",
+      "tag": "ASP.NET Core 8",
+      "pos": [450, 240],
+      "size": [150, 64]
+    },
+    {
+      "id": "application",
+      "type": "backend",
+      "label": "Application Layer",
+      "sublabel": "Casos de Uso CQRS",
+      "tag": "MediatR + FluentVal",
+      "pos": [680, 240],
+      "size": [160, 64]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "Domain Layer (Core)",
+      "sublabel": "Product Aggregate",
+      "tag": "Rich Domain Model",
+      "pos": [930, 240],
+      "size": [160, 64]
+    },
+    {
+      "id": "infrastructure",
+      "type": "backend",
+      "label": "Infrastructure Layer",
+      "sublabel": "EF Core Repositories",
+      "tag": "PostgreSQL Provider",
+      "pos": [680, 420],
+      "size": [160, 64]
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "Primary DB :5432",
+      "tag": "Tabla: products",
+      "pos": [930, 420],
+      "size": [160, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker Compose Topology (clean-app-net)",
+      "wraps": ["frontend", "webapi", "application", "domain", "infrastructure", "database"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Backend .NET 8 Solution",
+      "wraps": ["webapi", "application", "domain", "infrastructure"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Inviolable Business Core",
+      "wraps": ["domain"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-frontend",
+      "from": "browser",
+      "to": "frontend",
+      "label": "HTTP :5173",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-to-api",
+      "from": "frontend",
+      "to": "webapi",
+      "label": "REST :5000",
+      "labelDy": 20,
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-to-app",
+      "from": "webapi",
+      "to": "application",
+      "label": "MediatR",
+      "labelDy": -20,
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-to-domain",
+      "from": "application",
+      "to": "domain",
+      "label": "AdjustStock",
+      "labelDy": 20,
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-to-infra",
+      "from": "application",
+      "to": "infrastructure",
+      "label": "Commit",
+      "labelDx": 30,
+      "labelDy": 24,
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "infra-to-db",
+      "from": "infrastructure",
+      "to": "database",
+      "label": "SQL :5432",
+      "labelDy": -20,
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Clean Architecture",
+      "items": [
+        "Regla concéntrica: dependencias apuntando estrictamente hacia el Dominio",
+        "Separación física por proyectos .csproj: Domain, Application, Infrastructure, WebApi"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Rich Domain Model",
+      "items": [
+        "Entidad Product con estado estrictamente privado (sin setters públicos)",
+        "Mutación de stock encapsulada: product.AdjustStock(delta) bloquea stock negativo"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Despliegue Contenerizado",
+      "items": [
+        "3 contenedores Docker (frontend:5173, backend-api:5000, postgres-db:5432)",
+        "Red privada aislada clean-app-net y persistencia con volumen clean_data"
+      ]
+    }
+  ]
+}
