@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Ciclo de Petición en Arquitectura Hexagonal",
+    "output": "product-flow.html",
+    "viewBox": [860, 920],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "inbound-dispatch",
+        "label": "Adaptador Primario y Despacho",
+        "focus": ["client", "api_adapter", "pipeline", "handler"],
+        "note": "El cliente HTTP envía la petición, el controlador la traduce a comando CQRS y la entrega al pipeline de MediatR."
+      },
+      {
+        "id": "domain-and-persistence",
+        "label": "Dominio Puro y Persistencia",
+        "focus": ["handler", "domain", "repo_adapter", "db"],
+        "note": "El caso de uso valida con el agregado de dominio y persiste usando el puerto de salida implementado por EF Core."
+      },
+      {
+        "id": "full-cycle",
+        "label": "Ciclo Transaccional Completo",
+        "focus": ["client", "api_adapter", "pipeline", "handler", "domain", "repo_adapter", "db"],
+        "note": "Traza de extremo a extremo: desde HTTP Request hasta commit en PostgreSQL y retorno 201 Created."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "Cliente", "sublabel": "React SPA / HTTP" },
+    { "id": "api_adapter", "type": "backend", "label": "WebApi", "sublabel": "Driving Adapter" },
+    { "id": "pipeline", "type": "backend", "label": "Inbound", "sublabel": "MediatR Port" },
+    { "id": "handler", "type": "backend", "label": "App Core", "sublabel": "Use Case Handler" },
+    { "id": "domain", "type": "backend", "label": "Dominio", "sublabel": "Product Aggregate" },
+    { "id": "repo_adapter", "type": "backend", "label": "Repository", "sublabel": "Driven Adapter" },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "Primary DB :5432" }
+  ],
+  "segments": [
+    { "from": 150, "to": 275, "label": "Adaptador Primario (HTTP)" },
+    { "from": 285, "to": 515, "label": "Dominio e Inserción" },
+    { "from": 525, "to": 800, "label": "Transacción y Respuesta" }
+  ],
+  "messages": [
+    { "from": "client", "to": "api_adapter", "y": 180, "label": "POST /api/v1/products", "variant": "emphasis" },
+    { "from": "api_adapter", "to": "pipeline", "y": 218, "label": "Send(CreateProductCommand)", "variant": "emphasis" },
+    { "from": "pipeline", "to": "handler", "y": 254, "label": "Handle(command)", "variant": "emphasis" },
+    { "from": "handler", "to": "domain", "y": 300, "label": "Product.Create(sku, name, price, stock)", "variant": "emphasis" },
+    { "from": "domain", "to": "handler", "y": 336, "label": "return valid product", "variant": "return" },
+    { "from": "handler", "to": "repo_adapter", "y": 380, "label": "AddAsync(product)", "variant": "emphasis" },
+    { "from": "repo_adapter", "to": "db", "y": 418, "label": "INSERT INTO products", "variant": "emphasis" },
+    { "from": "db", "to": "repo_adapter", "y": 454, "label": "1 row inserted", "variant": "return" },
+    { "from": "repo_adapter", "to": "handler", "y": 488, "label": "entity tracked", "variant": "return" },
+    { "from": "handler", "to": "repo_adapter", "y": 540, "label": "SaveChangesAsync()", "variant": "emphasis" },
+    { "from": "repo_adapter", "to": "db", "y": 578, "label": "COMMIT TRANSACTION", "variant": "emphasis" },
+    { "from": "db", "to": "repo_adapter", "y": 614, "label": "committed", "variant": "return" },
+    { "from": "repo_adapter", "to": "handler", "y": 648, "label": "commit ok", "variant": "return" },
+    { "from": "handler", "to": "pipeline", "y": 688, "label": "return product.Id", "variant": "return" },
+    { "from": "pipeline", "to": "api_adapter", "y": 724, "label": "Guid (ProductId)", "variant": "return" },
+    { "from": "api_adapter", "to": "client", "y": 764, "label": "201 Created + Location", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "api_adapter", "from": 174, "to": 770, "type": "backend" },
+    { "participant": "pipeline", "from": 212, "to": 730, "type": "backend" },
+    { "participant": "handler", "from": 248, "to": 694, "type": "backend" },
+    { "participant": "domain", "from": 294, "to": 342, "type": "backend" },
+    { "participant": "repo_adapter", "from": 374, "to": 654, "type": "backend" },
+    { "participant": "db", "from": 412, "to": 460, "type": "database" },
+    { "participant": "db", "from": 572, "to": 620, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Adaptador Primario (Driving)",
+      "items": [
+        "El controlador Web API recibe JSON y lo transforma en un comando fuertemente tipado",
+        "El puerto de entrada (MediatR) aísla el controlador de la implementación del caso de uso"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Hexágono Interior (Core)",
+      "items": [
+        "El agregado de dominio Product garantiza que el stock nunca sea negativo y el SKU sea válido",
+        "El caso de uso orquesta la lógica interactuando únicamente con el puerto IProductRepository"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Adaptador Secundario (Driven)",
+      "items": [
+        "EF Core y Npgsql implementan la persistencia física sin contaminar el dominio",
+        "IUnitOfWork garantiza la atomicidad y consistencia de la transacción en PostgreSQL"
+      ]
+    }
+  ]
+}

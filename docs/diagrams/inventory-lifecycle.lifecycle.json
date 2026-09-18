@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Ciclo de Vida del Agregado de Producto",
+    "output": "inventory-lifecycle.html",
+    "viewBox": [1020, 680],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "inventory-rail",
+        "label": "Evolución de Stock en Dominio",
+        "focus": ["registered", "in_stock", "mutating", "low_stock", "exhausted"],
+        "note": "El agregado Product transiciona ordenadamente según la cantidad de existencias disponibles."
+      },
+      {
+        "id": "invariant-gate",
+        "label": "Compuerta de Invariantes",
+        "focus": ["mutating", "evaluating", "deleted"],
+        "note": "Las mutaciones verifican las reglas de dominio; si se solicita la baja, transiciona a eliminado."
+      },
+      {
+        "id": "lifecycle-outcomes",
+        "label": "Resultados de Ciclo de Vida",
+        "focus": ["low_stock", "restocking", "restocked", "exhausted", "archiving", "discontinued"],
+        "note": "Caminos de reabastecimiento tras alerta de stock bajo y retiro definitivo cuando se agota."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "Fases de Inventario" },
+    { "id": "waiting", "label": "Compuertas de Validación" },
+    { "id": "terminal", "label": "Estados Terminales" }
+  ],
+  "states": [
+    { "id": "registered", "type": "start", "label": "Registrado", "sublabel": "Product.Create", "lane": "main", "col": 0, "step": "01", "tag": "inicio" },
+    { "id": "in_stock", "type": "active", "label": "Stock Normal", "sublabel": "inventario > 3", "lane": "main", "col": 1, "step": "02", "tag": "saludable" },
+    { "id": "mutating", "type": "decision", "label": "Ajuste Stock", "sublabel": "AdjustStock(delta)", "lane": "main", "col": 2, "step": "03", "tag": "invariante" },
+    { "id": "low_stock", "type": "waiting", "label": "Stock Bajo", "sublabel": "1 a 3 unidades", "lane": "main", "col": 3, "step": "04", "tag": "alerta" },
+    { "id": "exhausted", "type": "success", "label": "Agotado", "sublabel": "stock = 0 unidades", "lane": "main", "col": 4, "step": "05", "tag": "sin-stock" },
+    { "id": "evaluating", "type": "waiting", "label": "Baja de Producto", "sublabel": "solicitud borrado", "lane": "waiting", "col": 0, "tag": "revisión" },
+    { "id": "restocking", "type": "waiting", "label": "Reabasteciendo", "sublabel": "orden de compra", "lane": "waiting", "col": 1, "tag": "espera" },
+    { "id": "archiving", "type": "waiting", "label": "Retirando", "sublabel": "fin de ciclo comercial", "lane": "waiting", "col": 2, "tag": "pausa" },
+    { "id": "deleted", "type": "failure", "label": "Eliminado", "sublabel": "removido del catálogo", "lane": "terminal", "col": 0, "tag": "terminal" },
+    { "id": "restocked", "type": "success", "label": "Restaurado", "sublabel": "stock repuesto", "lane": "terminal", "col": 1, "tag": "terminal" },
+    { "id": "discontinued", "type": "success", "label": "Descontinuado", "sublabel": "archivado histórico", "lane": "terminal", "col": 2, "tag": "terminal" }
+  ],
+  "transitions": [
+    { "from": "mutating", "to": "evaluating", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "evaluating", "to": "deleted", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "low_stock", "to": "restocking", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "restocking", "to": "restocked", "variant": "emphasis", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "exhausted", "to": "archiving", "variant": "dashed", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "from": "archiving", "to": "discontinued", "variant": "emphasis", "route": "straight", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Carril de Inventario en Dominio",
+      "items": [
+        "El producto recorre cinco estados ordenados desde registro hasta agotarse",
+        "Toda mutación de existencias ocurre mediante el método de negocio AdjustStock",
+        "El modelo rico impide transiciones hacia valores de inventario negativos"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Estados de Espera y Compuertas",
+      "items": [
+        "La alerta de Stock Bajo abre compuertas de reabastecimiento sin corromper el modelo",
+        "La baja de producto requiere confirmación transaccional con IUnitOfWork",
+        "El estado Agotado preserva consultas pero detiene despachos comerciales"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Salidas Terminales Explícitas",
+      "items": [
+        "La baja física del catálogo concluye en el estado terminal Eliminado",
+        "El reabastecimiento exitoso consolida un ciclo restaurado",
+        "El fin de comercialización conduce al estado archivado Descontinuado"
+      ]
+    }
+  ]
+}

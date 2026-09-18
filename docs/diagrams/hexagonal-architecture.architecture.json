@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura Hexagonal - Puertos y Adaptadores",
+    "output": "hexagonal-architecture.html",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "views": [
+      {
+        "id": "inbound-path",
+        "label": "Flujo de Entrada (Driving / Primario)",
+        "focus": ["client", "driving_adapter", "inbound_port", "domain_core"],
+        "note": "El cliente invoca el adaptador primario (Web API) que traduce la petición y llama al puerto de entrada (caso de uso CQRS)."
+      },
+      {
+        "id": "outbound-path",
+        "label": "Flujo de Salida y Persistencia (Driven)",
+        "focus": ["domain_core", "outbound_port", "driven_adapter", "database"],
+        "note": "El núcleo interactúa exclusivamente mediante interfaces (puertos de salida); el adaptador de infraestructura persiste en PostgreSQL."
+      },
+      {
+        "id": "complete-hexagon",
+        "label": "Topología Completa del Hexágono",
+        "focus": ["client", "driving_adapter", "inbound_port", "domain_core", "outbound_port", "driven_adapter", "database"],
+        "note": "Aislamiento total del núcleo (Hexágono Interior) frente a adaptadores y tecnologías externas (Hexágono Exterior)."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Client / Consumer",
+      "sublabel": "React SPA / HTTP",
+      "pos": [40, 240],
+      "size": [120, 64]
+    },
+    {
+      "id": "driving_adapter",
+      "type": "backend",
+      "label": "Driving Adapter",
+      "sublabel": "ASP.NET Core WebApi",
+      "tag": "Adaptador Primario",
+      "pos": [220, 240],
+      "size": [150, 64]
+    },
+    {
+      "id": "inbound_port",
+      "type": "backend",
+      "label": "Inbound Port",
+      "sublabel": "MediatR Use Cases",
+      "tag": "Puerto de Entrada",
+      "pos": [480, 240],
+      "size": [150, 64]
+    },
+    {
+      "id": "domain_core",
+      "type": "backend",
+      "label": "Domain Core",
+      "sublabel": "Product Aggregate",
+      "tag": "Hexágono Central",
+      "pos": [740, 240],
+      "size": [150, 64]
+    },
+    {
+      "id": "outbound_port",
+      "type": "backend",
+      "label": "Outbound Port",
+      "sublabel": "IProductRepository",
+      "tag": "Puerto de Salida",
+      "pos": [1000, 240],
+      "size": [150, 64]
+    },
+    {
+      "id": "driven_adapter",
+      "type": "backend",
+      "label": "Driven Adapter",
+      "sublabel": "EF Core Repository",
+      "tag": "Adaptador Secundario",
+      "pos": [1000, 420],
+      "size": [150, 64]
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "Primary DB :5432",
+      "tag": "Base de Datos",
+      "pos": [740, 420],
+      "size": [150, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Hexágono Interior: Núcleo de la Aplicación y Contratos (Core & Ports)",
+      "wraps": ["inbound_port", "domain_core", "outbound_port"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Hexágono Exterior: Adaptadores Tecnológicos (Driving & Driven Adapters)",
+      "wraps": ["driving_adapter", "driven_adapter"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "client-to-adapter",
+      "from": "client",
+      "to": "driving_adapter",
+      "label": "HTTP REST",
+      "variant": "emphasis"
+    },
+    {
+      "id": "adapter-to-inbound",
+      "from": "driving_adapter",
+      "to": "inbound_port",
+      "label": "Dispatch",
+      "variant": "emphasis"
+    },
+    {
+      "id": "inbound-to-domain",
+      "from": "inbound_port",
+      "to": "domain_core",
+      "label": "Mutate / Query",
+      "variant": "emphasis"
+    },
+    {
+      "id": "domain-to-outbound",
+      "from": "domain_core",
+      "to": "outbound_port",
+      "label": "Pass Aggregate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "outbound-to-driven",
+      "from": "outbound_port",
+      "to": "driven_adapter",
+      "label": "Implements Port",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 30
+    },
+    {
+      "id": "driven-to-db",
+      "from": "driven_adapter",
+      "to": "database",
+      "label": "Npgsql SQL",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Arquitectura Hexagonal (Puertos y Adaptadores)",
+      "items": [
+        "Propuesta por Alistair Cockburn (2005) para aislar la lógica de negocio",
+        "El núcleo no sabe si la petición viene de HTTP, consola o pruebas automatizadas"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Inversión de Dependencias (DIP)",
+      "items": [
+        "Application define IProductRepository (Puerto de Salida)",
+        "Infrastructure implementa IProductRepository (Adaptador Secundario) invirtiendo la flecha"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Testeabilidad sin Infraestructura",
+      "items": [
+        "El núcleo se prueba al 100% con mocks de los puertos de salida",
+        "No se requiere base de datos ni servidor web para validar reglas de negocio"
+      ]
+    }
+  ]
+}
